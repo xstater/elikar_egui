@@ -1,7 +1,8 @@
-use std::{pin::Pin, sync::{Arc, RwLock}, task::{Context, Poll}, time::Instant};
+use std::{pin::Pin, sync::Arc, task::{Context, Poll}, time::Instant};
 use crossbeam::channel::{Receiver, bounded};
 use egui::{CtxRef, FontData, FontDefinitions, Pos2, RawInput, Rect};
 use futures::{Stream, StreamExt};
+use parking_lot::RwLock;
 use xecs::{system::System, world::World};
 use elikar::{clipboard::Clipboard, common::Spawner, events::{Events, Update}, ime::IME};
 
@@ -40,8 +41,8 @@ pub fn build<S : Spawner>(spawner : &mut S,events : Events) -> Prepared {
         ctx_ref.set_fonts(fonts);
 
         let (w,h) = {
-            let world = world.read().unwrap();
-            let surface_config = world.resource_ref::<wgpu::SurfaceConfiguration>().unwrap();
+            let world = world.read();
+            let surface_config = world.resource_read::<wgpu::SurfaceConfiguration>().unwrap();
             (surface_config.width,surface_config.height)
         };
 
@@ -99,10 +100,10 @@ pub fn build<S : Spawner>(spawner : &mut S,events : Events) -> Prepared {
         let world = events_.world();
         let renderer_rx = renderer_rx;
         let mut render_pass = {
-            let world = world.read().unwrap();
+            let world = world.read();
             // create a render pass
-            let device = world.resource_ref::<wgpu::Device>().unwrap();
-            let surface_config = world.resource_ref::<wgpu::SurfaceConfiguration>().unwrap();
+            let device = world.resource_read::<wgpu::Device>().unwrap();
+            let surface_config = world.resource_read::<wgpu::SurfaceConfiguration>().unwrap();
             egui_wgpu_backend::RenderPass::new(&device,surface_config.format,1)
         };
 
@@ -110,7 +111,7 @@ pub fn build<S : Spawner>(spawner : &mut S,events : Events) -> Prepared {
         let mut render = events_.on_render();
         while let Some(_) = render.next().await {
 
-            let world = world.read().unwrap();
+            let world = world.read();
             // Unwrap never fails:
             // Render stage is behind of update stage
             // This Task was ran in local 
@@ -124,12 +125,12 @@ pub fn build<S : Spawner>(spawner : &mut S,events : Events) -> Prepared {
             // hanle output
             // copy to clipboard
             if !output.copied_text.is_empty() {
-                let mut clipboard = world.resource_mut::<Clipboard>().unwrap();
+                let mut clipboard = world.resource_write::<Clipboard>().unwrap();
                 clipboard.set(&output.copied_text).unwrap();
             }
             // ime
             {
-                let mut ime = world.resource_mut::<IME>().unwrap();
+                let mut ime = world.resource_write::<IME>().unwrap();
                 if ctx.wants_keyboard_input() {
                     ime.start();
                 } else {
@@ -143,24 +144,24 @@ pub fn build<S : Spawner>(spawner : &mut S,events : Events) -> Prepared {
             }
 
             // render
-            let surface = world.resource_ref::<wgpu::Surface>().unwrap();
+            let surface = world.resource_read::<wgpu::Surface>().unwrap();
             let output = surface.get_current_texture().unwrap();
             let output_view = output.texture
                 .create_view(&wgpu::TextureViewDescriptor::default());
 
-            let device = world.resource_ref::<wgpu::Device>().unwrap();
+            let device = world.resource_read::<wgpu::Device>().unwrap();
             let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor{
                 label: Some("egui_renderer_encoder"),
             });
 
-            let surface_config = world.resource_ref::<wgpu::SurfaceConfiguration>().unwrap();
+            let surface_config = world.resource_read::<wgpu::SurfaceConfiguration>().unwrap();
             
             let screen_desc = egui_wgpu_backend::ScreenDescriptor{
                 physical_width: surface_config.width,
                 physical_height: surface_config.height,
                 scale_factor: 1.0,
             };
-            let queue = world.resource_ref::<wgpu::Queue>().unwrap();
+            let queue = world.resource_read::<wgpu::Queue>().unwrap();
 
             render_pass.update_texture(&device, &queue, &font_image);
             render_pass.update_user_textures(&device,&queue);

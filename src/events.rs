@@ -1,8 +1,8 @@
 use crossbeam::channel::{Receiver, unbounded};
 use egui::{Key, Modifiers};
 use futures::StreamExt;
-use xecs::system::System;
 use elikar::{clipboard::Clipboard, common::Spawner, events::Events, keyboard::{Code, Keyboard}, mouse::events::button::Button};
+use xecs::system::System;
 
 fn key_map(code : Code) -> Option<Key> {
     Some(match code {
@@ -124,8 +124,8 @@ pub fn keyup<S : Spawner>(spawner : &mut S,events : Events) -> Receiver<egui::Ev
                 } else if key == Key::X && kmod.ctrl() {
                     Some(egui::Event::Cut)
                 } else if key == Key::V && kmod.ctrl() {
-                    let world = world.read().unwrap();
-                    let clipboard = world.resource_ref::<Clipboard>().unwrap();
+                    let world = world.read();
+                    let clipboard = world.resource_read::<Clipboard>().unwrap();
                     let text = clipboard.get().unwrap();
                     Some(egui::Event::Text(text))
                 } else {
@@ -157,8 +157,8 @@ pub fn mouse_down<S : Spawner>(spawner : &mut S,events : Events) -> Receiver<egu
             };
             if let Some(button) = button {
                 let kmod = {
-                    let world = world.read().unwrap();
-                    let keyboard = world.resource_ref::<Keyboard>().unwrap();
+                    let world = world.read();
+                    let keyboard = world.resource_read::<Keyboard>().unwrap();
                     keyboard.mod_state()
                 };
                 let event = egui::Event::PointerButton {
@@ -201,8 +201,8 @@ pub fn mouse_up<S : Spawner>(spawner : &mut S,events : Events) -> Receiver<egui:
             };
             if let Some(button) = button {
                 let kmod = {
-                    let world = world.read().unwrap();
-                    let keyboard = world.resource_ref::<Keyboard>().unwrap();
+                    let world = world.read();
+                    let keyboard = world.resource_read::<Keyboard>().unwrap();
                     keyboard.mod_state()
                 };
                 let event = egui::Event::PointerButton {
@@ -260,8 +260,8 @@ pub fn mouse_wheel<S : Spawner>(spawner : &mut S,events : Events) -> Receiver<eg
                 wheel.scrolled.1 as f32 * 8.0
             );
             let kmod = {
-                let world = world.read().unwrap();
-                let keyboard = world.resource_ref::<Keyboard>().unwrap();
+                let world = world.read();
+                let keyboard = world.resource_read::<Keyboard>().unwrap();
                 keyboard.mod_state()
             };
             let event = if kmod.ctrl() {

@@ -17,7 +17,7 @@ fn main() {
 
     let instance = wgpu::Instance::new(wgpu::Backends::VULKAN);
     let surface = {
-        let world = world.read().unwrap();
+        let world = world.read();
         let window = world.query::<&Window>().with_id()
             .find(|(id,_)|*id == window_id)
             .map(|(_,window)|window)
@@ -52,11 +52,11 @@ fn main() {
 
     //store these in world
     {
-        let mut world = world.write().unwrap();
-        world.store_resource(device);
-        world.store_resource(queue);
-        world.store_resource(config);
-        world.store_resource(surface);
+        let mut world = world.write();
+        world.register_resource(device);
+        world.register_resource(queue);
+        world.register_resource(config);
+        world.register_resource(surface);
     }
 
     let events = game.events();
@@ -64,8 +64,8 @@ fn main() {
         let mut quit = events.on_quit();
         let world = quit.world();
         if let Some(_) = quit.next().await {
-            let world = world.read().unwrap();
-            let mut states = world.resource_mut::<States>().unwrap();
+            let world = world.read();
+            let mut states = world.resource_write::<States>().unwrap();
             states.quit()
         }
     });
@@ -84,10 +84,10 @@ fn main() {
             if let Some((w,h)) = size {
                 if w == 0 || h == 0 { continue; }
 
-                let world = world.read().unwrap();
-                let surface = world.resource_ref::<wgpu::Surface>().unwrap();
-                let device = world.resource_ref::<wgpu::Device>().unwrap();
-                let mut config = world.resource_mut::<wgpu::SurfaceConfiguration>().unwrap();
+                let world = world.read();
+                let surface = world.resource_read::<wgpu::Surface>().unwrap();
+                let device = world.resource_read::<wgpu::Device>().unwrap();
+                let mut config = world.resource_write::<wgpu::SurfaceConfiguration>().unwrap();
                 config.width = w;
                 config.height = h;
                 surface.configure(&device, &config)
@@ -114,13 +114,12 @@ fn main() {
                     });
                     ui.add(egui::Slider::new(&mut age, 0..=120).text("age"));
                     if ui.button("Click each year").clicked() {
-                        dbg!("Added");
                         age += 1;
                     }
                     ui.label(format!("Hello '{}', age {}", name, age));
                     let fps = {
-                        let world = world.read().unwrap();
-                        let states = world.resource_ref::<States>().unwrap();
+                        let world = world.read();
+                        let states = world.resource_read::<States>().unwrap();
                         states.actual_fps()
                     };
                     ui.label(format!("Hello '{}', age {}", name, age));
